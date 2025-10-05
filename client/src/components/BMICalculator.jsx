@@ -3,35 +3,57 @@ import { useState } from 'react';
 const BMICalculator = ({ bmi, status, setBmi, setStatus }) => {
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
-  const [mealPlan, setMealPlan] = useState([]);
-  const [exercisePlan, setExercisePlan] = useState([]);
+  const [mealSuggestions, setMealSuggestions] = useState([]);
+  const [exerciseSuggestions, setExerciseSuggestions] = useState([]);
 
   const getSuggestions = (bmiValue) => {
     if (bmiValue < 18.5) {
-      setMealPlan(['Add protein-rich foods', 'Healthy fats like avocado', 'Eat more frequently']);
-      setExercisePlan(['Light strength training', 'Yoga', 'Stretching']);
+      setMealSuggestions([
+        'Add protein-rich foods',
+        'Include healthy fats such as avocado',
+        'Eat small meals more frequently',
+      ]);
+      setExerciseSuggestions(['Light strength training', 'Yoga', 'Daily stretching']);
       return 'Underweight';
-    } else if (bmiValue < 25) {
-      setMealPlan(['Balanced diet with veggies', 'Stay hydrated', 'Moderate portions']);
-      setExercisePlan(['Brisk walking', 'Cardio 30 mins/day', 'Light weights']);
-      return 'Normal';
-    } else if (bmiValue < 30) {
-      setMealPlan(['Reduce sugar', 'More vegetables & fiber', 'Control portions']);
-      setExercisePlan(['Daily cardio', 'Strength training', 'HIIT']);
-      return 'Overweight';
-    } else {
-      setMealPlan(['Low-carb meals', 'Vegetables & lean proteins', 'Avoid fried foods']);
-      setExercisePlan(['Walking 1hr/day', 'Low-impact cardio', 'Supervised training']);
-      return 'Obese';
     }
+    if (bmiValue < 25) {
+      setMealSuggestions([
+        'Maintain a balanced plate with vegetables',
+        'Stay hydrated',
+        'Keep portion sizes moderate',
+      ]);
+      setExerciseSuggestions(['Brisk walking', '30 minutes of cardio', 'Light weights']);
+      return 'Normal';
+    }
+    if (bmiValue < 30) {
+      setMealSuggestions([
+        'Reduce added sugar',
+        'Increase vegetables and fibre-rich foods',
+        'Monitor portion sizes',
+      ]);
+      setExerciseSuggestions(['Daily cardio', 'Strength training', 'HIIT sessions']);
+      return 'Overweight';
+    }
+
+    setMealSuggestions([
+      'Prioritise lean proteins and vegetables',
+      'Limit refined carbohydrates',
+      'Avoid deep-fried foods',
+    ]);
+    setExerciseSuggestions([
+      'Walk for at least an hour daily',
+      'Low-impact cardio',
+      'Work with a trainer if possible',
+    ]);
+    return 'Obese';
   };
 
   const calculateBMI = (e) => {
     e.preventDefault();
     if (!height || !weight) return;
 
-    const heightInMeters = height / 100;
-    const bmiValue = weight / (heightInMeters * heightInMeters);
+    const heightInMeters = Number(height) / 100;
+    const bmiValue = Number(weight) / (heightInMeters * heightInMeters);
     const fixedBMI = parseFloat(bmiValue.toFixed(2));
     setBmi(fixedBMI);
 
@@ -40,7 +62,7 @@ const BMICalculator = ({ bmi, status, setBmi, setStatus }) => {
   };
 
   return (
-    <div className="container mt-5 mb-5">
+    <div className="mt-4 mb-5">
       <div
         className="card shadow p-4 mx-auto"
         style={{
@@ -50,30 +72,41 @@ const BMICalculator = ({ bmi, status, setBmi, setStatus }) => {
           border: '1px solid #c8e6c9',
         }}
       >
-        <h3 className="mb-4 text-center fw-bold" style={{ color: '#2e7d32' }}>
-          🍀 BMI Calculator
+        <h3
+          className="mb-4 text-center fw-bold"
+          style={{ color: '#2e7d32', fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}
+        >
+          BMI Calculator
         </h3>
 
         <form onSubmit={calculateBMI}>
           <div className="mb-3">
-            <label className="form-label fw-semibold">📏 Height (cm)</label>
+            <label className="form-label fw-semibold" htmlFor="heightInput">
+              Height (cm)
+            </label>
             <input
+              id="heightInput"
               type="number"
               className="form-control"
               value={height}
               onChange={(e) => setHeight(e.target.value)}
               placeholder="e.g. 170"
+              min="0"
               required
             />
           </div>
           <div className="mb-3">
-            <label className="form-label fw-semibold">⚖️ Weight (kg)</label>
+            <label className="form-label fw-semibold" htmlFor="weightInput">
+              Weight (kg)
+            </label>
             <input
+              id="weightInput"
               type="number"
               className="form-control"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
               placeholder="e.g. 65"
+              min="0"
               required
             />
           </div>
@@ -96,21 +129,31 @@ const BMICalculator = ({ bmi, status, setBmi, setStatus }) => {
               animation: 'fadeIn 0.5s ease-in-out',
             }}
           >
-            <h5 className="text-success">💡 Result</h5>
-            <p><strong>BMI:</strong> {bmi}</p>
-            <p><strong>Status:</strong> {status}</p>
+            <h5 className="text-success">Results</h5>
+            <p className="mb-1">
+              <strong>BMI:</strong> {bmi}
+            </p>
+            <p className="mb-3">
+              <strong>Status:</strong> {status}
+            </p>
 
-            <h6 className="mt-3">🥗 Meal Suggestions</h6>
+            <h6 className="mt-3">Meal suggestions</h6>
             <ul className="mb-2">
-              {mealPlan.map((item, i) => (
-                <li key={i}><i className="bi bi-check-circle text-success me-2"></i>{item}</li>
+              {mealSuggestions.map((item) => (
+                <li key={item}>
+                  <i className="bi bi-check-circle text-success me-2" />
+                  {item}
+                </li>
               ))}
             </ul>
 
-            <h6 className="mt-3">🏃 Exercise Suggestions</h6>
+            <h6 className="mt-3">Exercise suggestions</h6>
             <ul>
-              {exercisePlan.map((item, i) => (
-                <li key={i}><i className="bi bi-heart-pulse-fill text-danger me-2"></i>{item}</li>
+              {exerciseSuggestions.map((item) => (
+                <li key={item}>
+                  <i className="bi bi-heart-pulse-fill text-danger me-2" />
+                  {item}
+                </li>
               ))}
             </ul>
           </div>

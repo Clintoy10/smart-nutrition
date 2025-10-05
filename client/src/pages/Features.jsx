@@ -48,7 +48,7 @@ const Features = () => {
       <nav className="navbar navbar-expand-lg navbar-light" style={{ backgroundColor: '#c8e6c9' }}>
         <div className="container-fluid">
           <NavLink className="navbar-brand text-success fw-bold fs-4" to="/balay">
-            🍃 Smart Nutrition
+             Smart Nutrition
           </NavLink>
 
           <button

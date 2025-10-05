@@ -1,107 +1,152 @@
-import { useNavigate, NavLink, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
-const Profile = () => {
+const formatValue = (value, suffix) => {
+  if (value === undefined || value === null || value === '') {
+    return 'Not provided';
+  }
+
+  if (!suffix) {
+    return value;
+  }
+
+  return `${value} ${suffix}`;
+};
+
+const formatText = (value) => {
+  if (!value) {
+    return 'Not provided';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+const ProfilePage = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
-  };
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
 
-  const user = {
-    name: 'Jerimiah Toring',
-    email: 'toring@gmail.com',
-    age: 22,
-    goal: 'Maintain weight',
-    dietaryPreference: 'Vegetarian',
-    allergies: 'Peanuts',
-  };
+    if (!storedUser) {
+      setIsLoading(false);
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+    } catch (err) {
+      console.error('Error parsing user from localStorage:', err);
+      localStorage.removeItem('user');
+      navigate('/login');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div style={{ backgroundColor: '#f0f9f4', minHeight: '100vh' }}>
+        <Navbar />
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-success" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Not provided';
+  const profilePhoto = user.photo || null;
 
   return (
     <div style={{ backgroundColor: '#f0f9f4', minHeight: '100vh' }}>
-      {/* 🌿 Shared Navbar */}
-      <nav className="navbar navbar-expand-lg navbar-light" style={{ backgroundColor: '#c8e6c9' }}>
-        <div className="container-fluid">
-          <Link className="navbar-brand text-success fw-bold fs-4" to="/balay">
-            🍃 Smart Nutrition
-          </Link>
+      <Navbar />
+
+      <div className="container py-5">
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <div>
+            <h1 className="fw-bold text-success mb-1">Profile</h1>
+            <p className="text-muted mb-0">Review and keep your personal details up to date.</p>
+          </div>
 
           <button
-            className="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarNav"
+            className="btn btn-success d-flex align-items-center"
+            onClick={() => navigate('/editprofile')}
           >
-            <span className="navbar-toggler-icon"></span>
+            <i className="bi bi-pencil-square me-2"></i>
+            Edit Profile
           </button>
-
-          <div className="collapse navbar-collapse justify-content-between" id="navbarNav">
-            <ul className="navbar-nav mx-auto">
-              {[
-                { to: '/balay', label: 'Home' },
-                { to: '/home', label: 'BMI' },
-                { to: '/features', label: 'Features' },
-                { to: '/profile', label: 'Profile' },
-              ].map((item, idx) => (
-                <li key={idx} className="nav-item mx-3">
-                  <NavLink
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `nav-link fw-bold px-3 py-1 rounded ${
-                        isActive ? 'text-white bg-success' : 'text-success'
-                      }`
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-
-            <button onClick={handleLogout} className="btn  fw-bold ms-auto">
-              <i className="bi bi-box-arrow-right me-1"></i> Logout
-            </button>
-          </div>
         </div>
-      </nav>
 
-      {/* 👤 Profile Content */}
-      <div className="container py-5">
-        <h2 className="text-success fw-bold mb-4 text-center">👤 My Profile</h2>
-
-        <div className="row justify-content-center">
-          <div className="col-md-6">
-            <div className="card shadow-sm border-0 rounded-4">
-              <div className="card-body">
-                <h5 className="fw-bold text-success mb-3">User Information</h5>
-                <p><strong>Name:</strong> {user.name}</p>
-                <p><strong>Email:</strong> {user.email}</p>
-                <p><strong>Age:</strong> {user.age}</p>
-                <p><strong>Goal:</strong> {user.goal}</p>
-                <p><strong>Dietary Preference:</strong> {user.dietaryPreference}</p>
-                <p><strong>Allergies:</strong> {user.allergies}</p>
-
-                {/* Optional: Edit button */}
-               <button
-                className="btn btn-outline-success mt-3"
-                onClick={() => navigate('/editprofile')}
+        <div className="row g-4">
+          <div className="col-md-4">
+            <div className="card h-100 shadow-sm text-center p-4">
+              <div
+                className="rounded-circle overflow-hidden mx-auto mb-3 d-flex align-items-center justify-content-center"
+                style={{ width: '140px', height: '140px', backgroundColor: '#e8f5e9' }}
               >
-                <i className="bi bi-pencil me-2"></i>Edit Profile
-              </button>
+                {profilePhoto ? (
+                  <img
+                    src={profilePhoto}
+                    alt="Profile"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span className="text-muted fw-semibold">No Photo</span>
+                )}
+              </div>
+
+              <h4 className="fw-bold mb-1">{fullName}</h4>
+              <p className="text-muted mb-0">{user.email || 'Not provided'}</p>
+            </div>
+          </div>
+
+          <div className="col-md-8">
+            <div className="card h-100 shadow-sm p-4">
+              <h5 className="fw-bold text-success mb-3">Personal Details</h5>
+
+              <div className="row gy-3">
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Age</span>
+                  <p className="fw-semibold mb-0">{formatValue(user.age, 'years')}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Gender</span>
+                  <p className="fw-semibold mb-0">{formatText(user.gender)}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Height</span>
+                  <p className="fw-semibold mb-0">{formatValue(user.height, 'cm')}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Weight</span>
+                  <p className="fw-semibold mb-0">{formatValue(user.weight, 'kg')}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Dietary Preference</span>
+                  <p className="fw-semibold mb-0">{formatText(user.dietaryPreference)}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Allergies</span>
+                  <p className="fw-semibold mb-0">{formatText(user.allergies)}</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        .nav-link:hover:not(.active) {
-          background-color: #a5d6a7;
-          color: white !important;
-        }
-      `}</style>
     </div>
   );
 };
 
-export default Profile;
+export default ProfilePage;

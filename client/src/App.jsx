@@ -7,19 +7,21 @@ import Balay from './pages/Balay';
 import Features from './pages/Features';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/balay" element={<Balay />} /> 
+        <Route path="/balay" element={<Balay />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/features" element={<Features />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/editprofile" element={<EditProfile />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </Router>
   );

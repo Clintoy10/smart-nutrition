@@ -4,7 +4,6 @@ import BMICalculator from '../components/BMICalculator';
 import MealPlan from '../components/MealPlan';
 
 const HomePage = () => {
-  // const navigate = useNavigate();
   const [bmi, setBmi] = useState(null);
   const [status, setStatus] = useState('');
 
@@ -21,7 +20,12 @@ const HomePage = () => {
       <Navbar />
 
       <div className="container py-4">
-        <h1 className="fw-bold mb-4 text-success">BMI Calculator</h1>
+        <h1
+          className="fw-bold mb-4 text-success"
+          style={{ fontSize: 'clamp(1.75rem, 4.5vw, 2.5rem)' }}
+        >
+          BMI Calculator
+        </h1>
 
         <BMICalculator bmi={bmi} status={status} setBmi={setBmi} setStatus={setStatus} />
 
@@ -37,11 +41,12 @@ const HomePage = () => {
             </div>
 
             <div className="alert alert-success mt-4" role="alert">
-              <h5 className="mb-1">🧠 Personalized Goal</h5>
+              <h5 className="mb-1">Personalised Goal</h5>
               <p className="mb-0">
                 <strong>Based on your BMI:</strong>{' '}
-                <span className="text-capitalize">{status}</span><br />
-                <strong>Recommended Goal:</strong>{' '}
+                <span className="text-capitalize">{status}</span>
+                <br />
+                <strong>Recommended goal:</strong>{' '}
                 <span className="text-capitalize">{goal}</span>
               </p>
             </div>
