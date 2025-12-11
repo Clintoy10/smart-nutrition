@@ -11,6 +11,7 @@ const MEAL_KEYS = [
 const FALLBACK_PLAN = [
   {
     day: 'Day 1',
+    calories: 1850,
     meals: {
       breakfast: ['Brown sinangag with scrambled egg whites, tomatoes, and malunggay'],
       lunch: ['Steamed fish fillet with calamansi, blanched kangkong, and red rice'],
@@ -20,6 +21,7 @@ const FALLBACK_PLAN = [
   },
   {
     day: 'Day 2',
+    calories: 1800,
     meals: {
       breakfast: ['Overnight oats with mango, toasted pinipig, and coconut yogurt'],
       lunch: ['Ginisang monggo with ampalaya leaves served over adlai'],
@@ -29,6 +31,7 @@ const FALLBACK_PLAN = [
   },
   {
     day: 'Day 3',
+    calories: 1900,
     meals: {
       breakfast: ['Taho-inspired soy pudding with arnibal made from muscovado and topped with sago and langka'],
       lunch: ['Pinakbet with squash, sitaw, okra, and lean pork tenderloin'],
@@ -38,6 +41,7 @@ const FALLBACK_PLAN = [
   },
   {
     day: 'Day 4',
+    calories: 1950,
     meals: {
       breakfast: ['Whole-wheat pandesal with kesong puti, kamatis, and lettuce'],
       lunch: ['Lentil and malunggay lugaw with boiled egg and calamansi'],
@@ -47,6 +51,7 @@ const FALLBACK_PLAN = [
   },
   {
     day: 'Day 5',
+    calories: 1850,
     meals: {
       breakfast: ['Vegetable omelette with talbos ng kamote and onions, served with brown rice'],
       lunch: ['Tinapang salmon salad with mixed greens, singkamas, and pineapple vinaigrette'],
@@ -56,6 +61,7 @@ const FALLBACK_PLAN = [
   },
   {
     day: 'Day 6',
+    calories: 2000,
     meals: {
       breakfast: ['Champorado made with tablea, low-fat milk, and topped with toasted coconut'],
       lunch: ['Chicken adobo sa gata with pechay and red rice'],
@@ -65,6 +71,7 @@ const FALLBACK_PLAN = [
   },
   {
     day: 'Day 7',
+    calories: 1825,
     meals: {
       breakfast: ['Lugaw topped with shredded chicken, ginger, and crispy garlic'],
       lunch: ['Bistek Tagalog using lean beef, caramelized onions, and blanched bok choy'],
@@ -88,10 +95,28 @@ const ensureArray = (value) => {
   return [String(value).trim()].filter(Boolean);
 };
 
+const normalizeCalories = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.round(value);
+  }
+
+  const match = String(value).match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+
+  const parsed = Number(match[1]);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.round(parsed);
+};
+
 const normalizeEntry = (entry, index) => {
   if (!entry || typeof entry !== 'object') {
     return {
       title: `Day ${index + 1}`,
+      calories: null,
       meals: {
         breakfast: [],
         lunch: [],
@@ -102,9 +127,11 @@ const normalizeEntry = (entry, index) => {
   }
 
   const meals = entry.meals && typeof entry.meals === 'object' ? entry.meals : entry;
+  const calories = normalizeCalories(entry.calories ?? entry.totalCalories ?? entry.kcal);
 
   return {
     title: entry.day || `Day ${index + 1}`,
+    calories,
     meals: {
       breakfast: ensureArray(meals.breakfast),
       lunch: ensureArray(meals.lunch),
@@ -119,6 +146,20 @@ const normalizePlan = (rawPlan) => {
     return [];
   }
 
+  // Handle common shapes: array of days, { days: [...] }, or { plan: { days: [...] } }
+  const daysArray =
+    (rawPlan && typeof rawPlan === 'object' && Array.isArray(rawPlan.days) && rawPlan.days) ||
+    (rawPlan &&
+      typeof rawPlan === 'object' &&
+      rawPlan.plan &&
+      typeof rawPlan.plan === 'object' &&
+      Array.isArray(rawPlan.plan.days) &&
+      rawPlan.plan.days);
+
+  if (daysArray) {
+    return daysArray.map((entry, index) => normalizeEntry(entry, index));
+  }
+
   if (Array.isArray(rawPlan)) {
     return rawPlan.map((entry, index) => normalizeEntry(entry, index));
   }
@@ -130,7 +171,26 @@ const normalizePlan = (rawPlan) => {
   return [];
 };
 
-const MealPlan = ({ goal, dietaryPreference, allergies }) => {
+const deriveDefaultCalories = (goal, calorieTarget) => {
+  const parsedTarget = normalizeCalories(calorieTarget);
+  if (parsedTarget) return parsedTarget;
+
+  const g = (goal || '').toLowerCase();
+  if (g === 'gain') return 2200;
+  if (g === 'lose') return 1700;
+  return 1900; // maintain or unknown
+};
+
+const MealPlan = ({
+  goal,
+  dietaryPreference,
+  allergies,
+  foodPreferences,
+  riskyFoods,
+  bodyType,
+  bodyGoal,
+  calorieTarget,
+}) => {
   const [mealPlan, setMealPlan] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -138,6 +198,7 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
 
   useEffect(() => {
     let cancelled = false;
+    const fallbackCalories = deriveDefaultCalories(goal, calorieTarget);
 
     const fetchMealPlan = async () => {
       setLoading(true);
@@ -158,6 +219,11 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
             goal: goal || 'maintain',
             dietary_preference: dietaryPreference || '',
             allergies: allergies || '',
+            food_preferences: foodPreferences ?? dietaryPreference ?? '',
+            risky_foods: riskyFoods ?? allergies ?? '',
+            body_type: bodyType || '',
+            body_goal: bodyGoal ?? goal ?? '',
+            calorie_target: calorieTarget || '',
           },
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -167,7 +233,11 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
         }
 
         const payload = data?.plan ?? data;
-        setMealPlan(normalizePlan(payload));
+        const normalized = normalizePlan(payload).map((day) => ({
+          ...day,
+          calories: normalizeCalories(day.calories) ?? fallbackCalories,
+        }));
+        setMealPlan(normalized);
       } catch (err) {
         if (cancelled) {
           return;
@@ -188,7 +258,12 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
             ? `${serverMessage}. Showing a sample plan you can use right away.`
             : 'We could not reach the meal service. Here is a sample 7-day plan you can use right away.'
         );
-        setMealPlan(normalizePlan(FALLBACK_PLAN));
+        setMealPlan(
+          normalizePlan(FALLBACK_PLAN).map((day) => ({
+            ...day,
+            calories: normalizeCalories(day.calories) ?? fallbackCalories,
+          }))
+        );
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -201,10 +276,25 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
     return () => {
       cancelled = true;
     };
-  }, [goal, dietaryPreference, allergies]);
+  }, [goal, dietaryPreference, allergies, foodPreferences, riskyFoods, bodyType, bodyGoal, calorieTarget]);
 
   const renderMealItems = (items) =>
     items.length > 0 ? items.join(', ') : 'Not specified';
+
+  const renderCalories = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return `~${value.toLocaleString()} kcal`;
+    }
+    return 'Calories not provided';
+  };
+
+  const renderCalorieTarget = (value) => {
+    const normalized = normalizeCalories(value);
+    if (normalized) {
+      return `${normalized.toLocaleString()} kcal`;
+    }
+    return value ? String(value) : 'Not set';
+  };
 
   return (
     <div
@@ -220,11 +310,20 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
         Personalized Meal Plan
       </h4>
 
-      <p className="text-muted text-center mb-4">
+      <p className="text-muted text-center mb-2">
         <strong>Goal:</strong>{' '}
         {goal ? goal.charAt(0).toUpperCase() + goal.slice(1) : 'Unknown'} &nbsp;|&nbsp;
-        <strong>Preference:</strong> {dietaryPreference || 'None'} &nbsp;|&nbsp;
-        <strong>Allergies:</strong> {allergies || 'None'}
+        <strong>Body goal:</strong>{' '}
+        {bodyGoal ? bodyGoal.charAt(0).toUpperCase() + bodyGoal.slice(1) : 'Not set'}{' '}
+        &nbsp;|&nbsp;
+        <strong>Body type:</strong> {bodyType || 'Not set'} &nbsp;|&nbsp;
+        <strong>Calorie target:</strong> {renderCalorieTarget(calorieTarget)}
+      </p>
+      <p className="text-muted text-center mb-4">
+        <strong>Dietary preference:</strong> {dietaryPreference || 'None'} &nbsp;|&nbsp;
+        <strong>Food prefs:</strong> {foodPreferences ?? dietaryPreference ?? 'None'}{' '}
+        &nbsp;|&nbsp;
+        <strong>Allergies / risky foods:</strong> {riskyFoods ?? allergies ?? 'None'}
       </p>
 
       {loading ? (
@@ -240,19 +339,29 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
               {mealPlan.map((day, index) => (
                 <div
                   key={`${day.title}-${index}`}
-                  className="mb-3 p-3 rounded"
-                  style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #c5e1a5',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  }}
+              className="mb-3 p-3 rounded"
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #c5e1a5',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              }}
+            >
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 className="mb-0" style={{ color: '#689f38' }}>
+                  {day.title || `Day ${index + 1}`}
+                </h6>
+                <span
+                  className="badge rounded-pill"
+                  style={{ backgroundColor: '#e3f2fd', color: '#1565c0' }}
                 >
-                  <h6 style={{ color: '#689f38' }}>{day.title || `Day ${index + 1}`}</h6>
-                  <ul className="mb-0 ps-3">
-                    {MEAL_KEYS.map(([key, label]) => (
-                      <li key={key}>
-                        <strong>{label}:</strong> {renderMealItems(day.meals[key] || [])}
-                      </li>
+                  {renderCalories(day.calories)}
+                </span>
+              </div>
+              <ul className="mb-0 ps-3">
+                {MEAL_KEYS.map(([key, label]) => (
+                  <li key={key}>
+                    <strong>{label}:</strong> {renderMealItems(day.meals[key] || [])}
+                  </li>
                     ))}
                   </ul>
                 </div>
@@ -268,9 +377,3 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
 };
 
 export default MealPlan;
-
-
-
-
-
-

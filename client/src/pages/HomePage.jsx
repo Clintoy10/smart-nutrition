@@ -10,6 +10,25 @@ const HomePage = () => {
   const [profile, setProfile] = useState(null);
   const [profileHint, setProfileHint] = useState('');
 
+  const mergeWithCachedProfile = (incoming) => {
+    if (!incoming) return null;
+    const cachedRaw = localStorage.getItem('user');
+    let cached = null;
+    if (cachedRaw) {
+      try {
+        cached = JSON.parse(cachedRaw);
+      } catch {
+        cached = null;
+      }
+    }
+
+    return {
+      ...incoming,
+      bodyType: incoming.bodyType ?? cached?.bodyType ?? '',
+      calorieTarget: incoming.calorieTarget ?? cached?.calorieTarget ?? '',
+    };
+  };
+
   const getGoalFromStatus = (bmiStatus) => {
     if (bmiStatus === 'Underweight') return 'gain';
     if (bmiStatus === 'Normal') return 'maintain';
@@ -35,9 +54,10 @@ const HomePage = () => {
         }
 
         if (data?.user) {
-          setProfile(data.user);
+          const merged = mergeWithCachedProfile(data.user);
+          setProfile(merged);
           setProfileHint('');
-          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('user', JSON.stringify(merged));
         }
       } catch (error) {
         console.error('Failed to load profile for meal plan', error);
@@ -71,6 +91,8 @@ const HomePage = () => {
   const planGoal = profile?.goal || recommendedGoal || 'maintain';
   const planPreference = profile?.dietaryPreference || '';
   const planAllergies = profile?.allergies || '';
+  const planBodyType = profile?.bodyType || '';
+  const planCalorieTarget = profile?.calorieTarget || '';
 
   return (
     <div style={{ backgroundColor: '#f0f9f4', minHeight: '100vh' }}>
@@ -97,6 +119,11 @@ const HomePage = () => {
                 goal={planGoal}
                 dietaryPreference={planPreference}
                 allergies={planAllergies}
+                foodPreferences={planPreference}
+                riskyFoods={planAllergies}
+                bodyGoal={planGoal}
+                bodyType={planBodyType}
+                calorieTarget={planCalorieTarget}
               />
             </div>
 

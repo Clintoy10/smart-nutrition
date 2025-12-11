@@ -29,6 +29,25 @@ const ProfilePage = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const mergeWithCachedProfile = (incoming) => {
+    if (!incoming) return null;
+    const cachedRaw = localStorage.getItem('user');
+    let cached = null;
+    if (cachedRaw) {
+      try {
+        cached = JSON.parse(cachedRaw);
+      } catch {
+        cached = null;
+      }
+    }
+
+    return {
+      ...incoming,
+      bodyType: incoming.bodyType ?? cached?.bodyType ?? '',
+      calorieTarget: incoming.calorieTarget ?? cached?.calorieTarget ?? '',
+    };
+  };
+
   useEffect(() => {
     const loadProfile = async () => {
       const token = localStorage.getItem('token');
@@ -44,8 +63,9 @@ const ProfilePage = () => {
           return;
         }
 
-        setUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        const merged = mergeWithCachedProfile(data.user);
+        setUser(merged);
+        localStorage.setItem('user', JSON.stringify(merged));
       } catch (error) {
         console.error('Failed to load profile', error);
         const cached = localStorage.getItem('user');
@@ -166,6 +186,14 @@ const ProfilePage = () => {
                 <div className="col-sm-6">
                   <span className="text-uppercase text-muted small">Goal</span>
                   <p className="fw-semibold mb-0">{formatText(user.goal)}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Body Type</span>
+                  <p className="fw-semibold mb-0">{formatText(user.bodyType)}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Calorie Target</span>
+                  <p className="fw-semibold mb-0">{formatValue(user.calorieTarget, 'kcal')}</p>
                 </div>
               </div>
             </div>

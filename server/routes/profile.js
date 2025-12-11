@@ -70,6 +70,8 @@ router.get('/me', authMiddleware, async (req, res, next) => {
           goal,
           dietary_preference,
           allergies,
+          body_type,
+          calorie_target,
           photo_url,
           is_admin
         FROM users
@@ -100,6 +102,8 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
     dietaryPreference,
     allergies,
     goal,
+    bodyType,
+    calorieTarget,
   } = req.body;
   const { userId } = req.user;
   const newPhotoPath = req.file ? `/uploads/profile_images/${req.file.filename}` : null;
@@ -122,6 +126,8 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
           goal,
           dietary_preference,
           allergies,
+          body_type,
+          calorie_target,
           photo_url,
           is_admin
         FROM users
@@ -144,6 +150,20 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
       }
       const numeric = Number(value);
       return Number.isFinite(numeric) ? numeric : fallback;
+    };
+
+    const parseOptionalPositive = (value, fallback) => {
+      if (value === undefined) return fallback;
+      if (value === null || value === '') return null;
+
+      // Accept raw numbers, comma-separated thousands, and trailing text (e.g., "1,800", "1800 kcal")
+      const cleaned = String(value).replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+      if (!cleaned || !cleaned[1]) return fallback;
+
+      const numeric = Number(cleaned[1]);
+      if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
+
+      return Math.round(numeric);
     };
 
     const normalizeRequired = (value, fallback) => {
@@ -176,8 +196,10 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
           dietary_preference = $8,
           allergies = $9,
           goal = $10,
-          photo_url = COALESCE($11, photo_url)
-        WHERE id = $12
+          body_type = $11,
+          calorie_target = $12,
+          photo_url = COALESCE($13, photo_url)
+        WHERE id = $14
         RETURNING
           id,
           first_name,
@@ -190,6 +212,8 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
           goal,
           dietary_preference,
           allergies,
+          body_type,
+          calorie_target,
           photo_url,
           is_admin
       `,
@@ -204,6 +228,8 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
         normalizeOptional(dietaryPreference, current.dietary_preference),
         normalizeOptional(allergies, current.allergies),
         normalizeOptional(goal, current.goal),
+        normalizeOptional(bodyType, current.body_type),
+        parseOptionalPositive(calorieTarget, current.calorie_target),
         newPhotoPath,
         userId,
       ]

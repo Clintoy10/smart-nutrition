@@ -13,9 +13,19 @@ const emptyForm = {
   dietaryPreference: '',
   allergies: '',
   goal: '',
+  bodyType: '',
+  calorieTarget: '',
 };
 
 const toStringValue = (value) => (value !== undefined && value !== null ? String(value) : '');
+const normalizeCalorieTarget = (value) => {
+  if (value === undefined || value === null || value === '') return '';
+  const cleaned = String(value).replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+  if (!cleaned || !cleaned[1]) return '';
+  const parsed = Number(cleaned[1]);
+  if (!Number.isFinite(parsed) || parsed <= 0) return '';
+  return String(Math.round(parsed));
+};
 
 const EditProfile = () => {
   const navigate = useNavigate();
@@ -25,6 +35,24 @@ const EditProfile = () => {
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [storedUser, setStoredUser] = useState(null);
+
+  const mergeWithCachedProfile = (incoming) => {
+    if (!incoming) return null;
+    const cachedRaw = localStorage.getItem('user');
+    let cached = null;
+    if (cachedRaw) {
+      try {
+        cached = JSON.parse(cachedRaw);
+      } catch {
+        cached = null;
+      }
+    }
+    return {
+      ...incoming,
+      bodyType: incoming.bodyType ?? cached?.bodyType ?? '',
+      calorieTarget: incoming.calorieTarget ?? cached?.calorieTarget ?? '',
+    };
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -41,7 +69,7 @@ const EditProfile = () => {
           return;
         }
 
-        const user = data.user;
+        const user = mergeWithCachedProfile(data.user);
         setStoredUser(user);
         setForm({
           firstName: user.firstName || '',
@@ -54,6 +82,8 @@ const EditProfile = () => {
           dietaryPreference: user.dietaryPreference || '',
           allergies: user.allergies || '',
           goal: user.goal || '',
+          bodyType: user.bodyType || '',
+          calorieTarget: toStringValue(user.calorieTarget),
         });
         setPreview(user.photoUrl || user.photo || null);
         setPhotoFile(null);
@@ -80,6 +110,8 @@ const EditProfile = () => {
             dietaryPreference: parsedUser.dietaryPreference || '',
             allergies: parsedUser.allergies || '',
             goal: parsedUser.goal || '',
+            bodyType: parsedUser.bodyType || '',
+            calorieTarget: toStringValue(parsedUser.calorieTarget),
           });
           setPreview(parsedUser.photoUrl || parsedUser.photo || null);
           setPhotoFile(null);
@@ -169,10 +201,17 @@ const EditProfile = () => {
       validationErrors.goal = 'Select a goal.';
     }
 
+    if (form.calorieTarget) {
+      const numericValue = Number(form.calorieTarget);
+      if (!numericValue || numericValue <= 0) {
+        validationErrors.calorieTarget = 'Enter a valid calorie target or leave blank.';
+      }
+    }
+
     return validationErrors;
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
@@ -195,6 +234,8 @@ const EditProfile = () => {
       formData.append('dietaryPreference', form.dietaryPreference);
       formData.append('allergies', form.allergies);
       formData.append('goal', form.goal);
+      formData.append('bodyType', form.bodyType);
+      formData.append('calorieTarget', form.calorieTarget);
 
       if (photoFile) {
         formData.append('photo', photoFile);
@@ -204,22 +245,31 @@ const EditProfile = () => {
       const updatedUser = data?.user;
 
       if (updatedUser) {
-        setStoredUser(updatedUser);
+        const mergedUser = {
+          ...updatedUser,
+          bodyType: updatedUser.bodyType ?? form.bodyType,
+          calorieTarget:
+            (updatedUser.calorieTarget ?? normalizeCalorieTarget(form.calorieTarget)) || null,
+        };
+
+        setStoredUser(mergedUser);
         setForm({
-          firstName: updatedUser.firstName || '',
-          lastName: updatedUser.lastName || '',
-          email: updatedUser.email || '',
-          age: toStringValue(updatedUser.age),
-          weight: toStringValue(updatedUser.weight),
-          height: toStringValue(updatedUser.height),
-          gender: updatedUser.gender || '',
-          dietaryPreference: updatedUser.dietaryPreference || '',
-          allergies: updatedUser.allergies || '',
-          goal: updatedUser.goal || '',
+          firstName: mergedUser.firstName || '',
+          lastName: mergedUser.lastName || '',
+          email: mergedUser.email || '',
+          age: toStringValue(mergedUser.age),
+          weight: toStringValue(mergedUser.weight),
+          height: toStringValue(mergedUser.height),
+          gender: mergedUser.gender || '',
+          dietaryPreference: mergedUser.dietaryPreference || '',
+          allergies: mergedUser.allergies || '',
+          goal: mergedUser.goal || '',
+          bodyType: mergedUser.bodyType || '',
+          calorieTarget: toStringValue(mergedUser.calorieTarget),
         });
-        setPreview(updatedUser.photoUrl || updatedUser.photo || null);
+        setPreview(mergedUser.photoUrl || mergedUser.photo || null);
         setPhotoFile(null);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        localStorage.setItem('user', JSON.stringify(mergedUser));
       }
 
       alert('Profile updated successfully!');
@@ -324,6 +374,37 @@ const EditProfile = () => {
                   <option value="lose">Lose weight</option>
                 </select>
                 {errors.goal && <div className="invalid-feedback">{errors.goal}</div>}
+              </div>
+
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Body Type</label>
+                <select
+                  name="bodyType"
+                  className="form-select"
+                  value={form.bodyType}
+                  onChange={handleChange}
+                >
+                  <option value="">Select</option>
+                  <option value="ectomorph">Ectomorph</option>
+                  <option value="mesomorph">Mesomorph</option>
+                  <option value="endomorph">Endomorph</option>
+                </select>
+              </div>
+
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Calorie Target (per day)</label>
+                <input
+                  type="number"
+                  name="calorieTarget"
+                  className={`form-control ${errors.calorieTarget ? 'is-invalid' : ''}`}
+                  placeholder="e.g., 1800"
+                  value={form.calorieTarget}
+                  onChange={handleChange}
+                  min="0"
+                />
+                {errors.calorieTarget && (
+                  <div className="invalid-feedback">{errors.calorieTarget}</div>
+                )}
               </div>
 
               <div className="col-md-6">

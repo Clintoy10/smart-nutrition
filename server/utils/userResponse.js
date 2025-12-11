@@ -28,6 +28,8 @@ const mapUserRowToResponse = (req, row) => {
     goal: row.goal,
     dietaryPreference: row.dietary_preference,
     allergies: row.allergies,
+    bodyType: row.body_type,
+    calorieTarget: row.calorie_target,
     photoUrl: buildAbsoluteUrl(req, row.photo_url),
   };
 

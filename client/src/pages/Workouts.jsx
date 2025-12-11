@@ -1,4 +1,4 @@
-git add .import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { WORKOUT_TYPES } from '../data/workouts';
 

@@ -10,7 +10,9 @@ const ensureUserProfileColumns = () => {
           ADD COLUMN IF NOT EXISTS dietary_preference TEXT,
           ADD COLUMN IF NOT EXISTS allergies TEXT,
           ADD COLUMN IF NOT EXISTS goal TEXT,
-          ADD COLUMN IF NOT EXISTS photo_url TEXT
+          ADD COLUMN IF NOT EXISTS photo_url TEXT,
+          ADD COLUMN IF NOT EXISTS body_type TEXT,
+          ADD COLUMN IF NOT EXISTS calorie_target INTEGER
       `)
       .catch((error) => {
         ensurePromise = null;

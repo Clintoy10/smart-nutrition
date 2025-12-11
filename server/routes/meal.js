@@ -6,10 +6,28 @@ const generateMealPlan = require("../utils/openai");
 
 // GET /api/meal/generate
 router.get("/generate", authMiddleware, async (req, res) => {
-  const { goal = "maintain", dietary_preference = "", allergies = "" } = req.query;
+  const {
+    goal = "maintain",
+    dietary_preference = "",
+    allergies = "",
+    food_preferences = "",
+    risky_foods = "",
+    body_type = "",
+    body_goal = "",
+    calorie_target = "",
+  } = req.query;
 
   try {
-    const plan = await generateMealPlan({ goal, dietary_preference, allergies });
+    const plan = await generateMealPlan({
+      goal,
+      dietary_preference,
+      allergies,
+      food_preferences,
+      risky_foods,
+      body_type,
+      body_goal,
+      calorie_target,
+    });
 
     if (!plan) {
       return res.status(500).json({ error: "Meal plan generation failed" });
