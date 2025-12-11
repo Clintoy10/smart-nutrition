@@ -13,20 +13,25 @@ ensureUserProfileColumns().catch((error) => {
   console.error('Failed to ensure user profile columns', error);
 });
 
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'profile_images');
-fs.mkdirSync(uploadsDir, { recursive: true });
+const useDiskUploads = process.env.ENABLE_DISK_UPLOADS === 'true';
+const uploadsDir = useDiskUploads ? path.join(__dirname, '..', 'uploads', 'profile_images') : null;
+if (uploadsDir) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 const toAbsoluteUploadPath = (relativePath) =>
   path.join(__dirname, '..', relativePath.replace(/^[\\/]+/, ''));
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    cb(null, `user-${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
+const storage = useDiskUploads
+  ? multer.diskStorage({
+      destination: (_req, _file, cb) => {
+        cb(null, uploadsDir);
+      },
+      filename: (_req, file, cb) => {
+        cb(null, `user-${Date.now()}${path.extname(file.originalname)}`);
+      },
+    })
+  : multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -42,6 +47,12 @@ const upload = multer({
 const processPhotoUpload = (req, res, next) => {
   upload.single('photo')(req, res, (error) => {
     if (!error) {
+      if (!useDiskUploads && req.file) {
+        return res.status(503).json({
+          error:
+            'Image uploads require persistent storage. Set ENABLE_DISK_UPLOADS=true for local dev or configure an external object storage handler.',
+        });
+      }
       return next();
     }
 
@@ -106,7 +117,7 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
     calorieTarget,
   } = req.body;
   const { userId } = req.user;
-  const newPhotoPath = req.file ? `/uploads/profile_images/${req.file.filename}` : null;
+  const newPhotoPath = req.file && useDiskUploads ? `/uploads/profile_images/${req.file.filename}` : null;
 
   const client = await pool.connect();
 
@@ -243,7 +254,7 @@ router.put('/me', authMiddleware, processPhotoUpload, async (req, res, next) => 
         ? current.photo_url
         : null;
 
-    if (previousPhotoPath) {
+    if (useDiskUploads && previousPhotoPath) {
       const deletePath = toAbsoluteUploadPath(previousPhotoPath);
       fs.promises.unlink(deletePath).catch(() => {});
     }
