@@ -6,6 +6,7 @@ const baseLinks = [
   { to: '/balay', label: 'Home' },
   { to: '/home', label: 'BMI' },
   { to: '/features', label: 'Features' },
+  { to: '/workouts', label: 'Workouts' },
   { to: '/profile', label: 'Profile' },
 ];
 
@@ -293,4 +294,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

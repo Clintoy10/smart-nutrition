@@ -16,6 +16,54 @@ import {
 
 const emptyStats = { total: 0, active: 0, pending: 0, flagged: 0 };
 
+const daysFromNowIso = (days) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+const SAMPLE_REPORT_SOURCE = [
+  {
+    code: 'R-904',
+    severity: 'High',
+    offset: -2,
+    detail: 'Sodium intake audit pending',
+    subject: { id: 9001, name: 'Daniel Evans', email: 'daniel.evans@example.com' },
+  },
+  {
+    code: 'R-899',
+    severity: 'Medium',
+    offset: -3,
+    detail: 'Follow up required on reported dairy allergy',
+    subject: { id: 9002, name: 'Priya Mehta', email: 'priya.mehta@example.com' },
+  },
+  {
+    code: 'R-881',
+    severity: 'Low',
+    offset: -4,
+    detail: 'Confirm hydration logs for wellness cohort',
+    subject: { id: 9003, name: 'Lina Duarte', email: 'lina.duarte@example.com' },
+  },
+];
+
+const SAMPLE_REPORTS = SAMPLE_REPORT_SOURCE.map(({ code, severity, offset, detail, subject }) => ({
+  id: code,
+  message: `${detail} for ${subject.name}.`,
+  severity,
+  createdAt: daysFromNowIso(offset),
+  user: subject,
+}));
+
+const SAMPLE_FLAGGED_USERS = SAMPLE_REPORT_SOURCE.map(({ subject, offset }, index) => ({
+  id: subject.id,
+  name: subject.name,
+  email: subject.email,
+  goal: 'maintain',
+  status: 'Flagged',
+  lastLogin: daysFromNowIso(offset - 1 - index),
+}));
+const SAMPLE_TASKS = [
+  { id: 'T-510', label: 'Verify celiac-friendly pantry stock.', due: daysFromNowIso(1), priority: 'High' },
+  { id: 'T-498', label: 'Schedule midweek member check-ins.', due: daysFromNowIso(3), priority: 'Medium' },
+  { id: 'T-482', label: 'Publish weekend hydration tips.', due: daysFromNowIso(5), priority: 'Low' },
+];
+
 const statusBadgeClass = (status) => {
   if (status === 'Active') return 'badge bg-success';
   if (status === 'Pending') return 'badge bg-warning text-dark';
@@ -103,6 +151,18 @@ const normalizePriority = (value) => {
   return 'Medium';
 };
 
+const buildLocalTask = (payload) => {
+  const fallbackDate = payload.due ? new Date(payload.due) : new Date();
+  const safeDate = Number.isNaN(fallbackDate.getTime()) ? new Date() : fallbackDate;
+
+  return {
+    id: `LOCAL-${Date.now()}`,
+    label: payload.label,
+    due: safeDate.toISOString(),
+    priority: payload.priority || 'Medium',
+  };
+};
+
 const sortTasksByDue = (tasks) =>
   [...tasks].sort((a, b) => {
     const aTime = a.due ? new Date(a.due).getTime() : Number.POSITIVE_INFINITY;
@@ -163,6 +223,21 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Failed to fetch admin dashboard', error);
       setLoadError(handleErrorMessage(error, 'Unable to load admin data.'));
+      setDashboard((prev) => {
+        if (prev.reports.length > 0 || prev.tasks.length > 0) {
+          return prev;
+        }
+
+        const fallbackUsers = prev.users.length > 0 ? prev.users : SAMPLE_FLAGGED_USERS;
+
+        return {
+          ...prev,
+          stats: { ...prev.stats, flagged: SAMPLE_REPORTS.length },
+          reports: SAMPLE_REPORTS,
+          tasks: sortTasksByDue(SAMPLE_TASKS),
+          users: fallbackUsers,
+        };
+      });
     } finally {
       setLoading(false);
     }
@@ -291,7 +366,17 @@ const AdminPage = () => {
       }));
       showBanner('success', data.message);
     } catch (error) {
-      showBanner('danger', handleErrorMessage(error, 'Unable to add the task.'));
+      const isNetworkError = !error?.response;
+      if (isNetworkError) {
+        const localTask = buildLocalTask(payload);
+        setDashboard((prev) => ({
+          ...prev,
+          tasks: sortTasksByDue([localTask, ...prev.tasks]),
+        }));
+        showBanner('warning', 'Server unreachable. Task added locally for now.');
+      } else {
+        showBanner('danger', handleErrorMessage(error, 'Unable to add the task.'));
+      }
     } finally {
       setBusyAction(null);
     }
@@ -362,11 +447,40 @@ const AdminPage = () => {
     setBusyAction(`resolve-report-${reportId}`);
     try {
       const { data } = await resolveFlaggedReport(reportId);
-      setDashboard((prev) => ({
-        ...prev,
-        stats: data.stats || prev.stats,
-        reports: prev.reports.filter((report) => report.id !== reportId),
-      }));
+      setDashboard((prev) => {
+        const resolvedReport = prev.reports.find((report) => report.id === reportId);
+        const resolvedUserId = data.user?.id || resolvedReport?.user?.id || null;
+
+        const nextUsers = (() => {
+          if (data.user) {
+            const exists = prev.users.some((user) => user.id === data.user.id);
+            if (exists) {
+              return prev.users.map((user) =>
+                user.id === data.user.id ? { ...user, ...data.user } : user
+              );
+            }
+            return [...prev.users, data.user];
+          }
+
+          if (resolvedUserId) {
+            const exists = prev.users.some((user) => user.id === resolvedUserId);
+            if (exists) {
+              return prev.users.map((user) =>
+                user.id === resolvedUserId ? { ...user, status: 'Active' } : user
+              );
+            }
+          }
+
+          return prev.users;
+        })();
+
+        return {
+          ...prev,
+          stats: data.stats || prev.stats,
+          reports: prev.reports.filter((report) => report.id !== reportId),
+          users: nextUsers,
+        };
+      });
       showBanner('success', 'Report resolved.');
     } catch (error) {
       showBanner('danger', handleErrorMessage(error, 'Unable to resolve the report.'));
@@ -374,7 +488,6 @@ const AdminPage = () => {
       setBusyAction(null);
     }
   };
-
   const handleRemoveTask = async (taskId) => {
     setBusyAction(`remove-task-${taskId}`);
     try {
@@ -385,7 +498,22 @@ const AdminPage = () => {
       }));
       showBanner('success', 'Task removed.');
     } catch (error) {
-      showBanner('danger', handleErrorMessage(error, 'Unable to remove the task.'));
+      const status = error?.response?.status;
+      const canRemoveLocally = !error?.response || status === 404;
+
+      if (canRemoveLocally) {
+        setDashboard((prev) => ({
+          ...prev,
+          tasks: prev.tasks.filter((task) => task.id !== taskId),
+        }));
+        const message =
+          status === 404
+            ? 'Task not found on the server. Removed locally.'
+            : 'Server unreachable. Task removed locally for now.';
+        showBanner('warning', message);
+      } else {
+        showBanner('danger', handleErrorMessage(error, 'Unable to remove the task.'));
+      }
     } finally {
       setBusyAction(null);
     }
@@ -708,6 +836,11 @@ const AdminPage = () => {
                         <div>
                           <span className="fw-semibold text-success">{report.id}</span>
                           <p className="mb-1" style={{ lineHeight: 1.4 }}>{report.message}</p>
+                            {report.user && (
+                              <span className="text-muted small d-block">
+                                Account: {report.user.name || 'Unknown'}{report.user.email ? ` - ${report.user.email}` : ''}
+                              </span>
+                            )}
                           <span className="text-muted small">Filed {formatDate(report.createdAt)}</span>
                         </div>
                         <div className="d-flex flex-column align-items-end gap-2">
@@ -777,7 +910,7 @@ const AdminPage = () => {
                   <button
                     type="button"
                     className="btn btn-outline-success"
-                    onClick={() => navigate('/features')}
+                    onClick={() => navigate('/operations-board')}
                   >
                     <i className="bi bi-kanban me-2" />
                     Open board
@@ -793,3 +926,6 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
+
+
+

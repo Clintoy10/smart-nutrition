@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { fetchProfile } from '../api';
 
 const formatValue = (value, suffix) => {
   if (value === undefined || value === null || value === '') {
@@ -19,7 +20,8 @@ const formatText = (value) => {
     return 'Not provided';
   }
 
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const stringValue = String(value);
+  return stringValue.charAt(0).toUpperCase() + stringValue.slice(1);
 };
 
 const ProfilePage = () => {
@@ -28,24 +30,45 @@ const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const loadProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
 
-    if (!storedUser) {
-      setIsLoading(false);
-      navigate('/login');
-      return;
-    }
+      try {
+        const { data } = await fetchProfile();
+        if (!data?.user) {
+          navigate('/login');
+          return;
+        }
 
-    try {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-    } catch (err) {
-      console.error('Error parsing user from localStorage:', err);
-      localStorage.removeItem('user');
-      navigate('/login');
-    } finally {
-      setIsLoading(false);
-    }
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      } catch (error) {
+        console.error('Failed to load profile', error);
+        const cached = localStorage.getItem('user');
+
+        if (!cached) {
+          navigate('/login');
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(cached);
+          setUser(parsed);
+        } catch (storageError) {
+          console.error('Failed to parse cached profile', storageError);
+          localStorage.removeItem('user');
+          navigate('/login');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
   }, [navigate]);
 
   if (isLoading) {
@@ -66,7 +89,7 @@ const ProfilePage = () => {
   }
 
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Not provided';
-  const profilePhoto = user.photo || null;
+  const profilePhoto = user.photoUrl || user.photo || null;
 
   return (
     <div style={{ backgroundColor: '#f0f9f4', minHeight: '100vh' }}>
@@ -139,6 +162,10 @@ const ProfilePage = () => {
                 <div className="col-sm-6">
                   <span className="text-uppercase text-muted small">Allergies</span>
                   <p className="fw-semibold mb-0">{formatText(user.allergies)}</p>
+                </div>
+                <div className="col-sm-6">
+                  <span className="text-uppercase text-muted small">Goal</span>
+                  <p className="fw-semibold mb-0">{formatText(user.goal)}</p>
                 </div>
               </div>
             </div>

@@ -35,6 +35,11 @@ if (typeof window !== 'undefined') {
 
 export const signup = (data) => API.post('/auth/signup', data);
 export const login = (data) => API.post('/auth/login', data);
+export const fetchProfile = () => API.get('/profile/me');
+export const updateProfile = (data) =>
+  API.put('/profile/me', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 
 export const fetchAdminDashboard = () => API.get('/admin/dashboard');
 export const fetchAnnouncements = () => API.get('/announcements');

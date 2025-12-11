@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchProfile, updateProfile } from '../api';
 
 const emptyForm = {
   firstName: '',
@@ -11,50 +12,86 @@ const emptyForm = {
   gender: '',
   dietaryPreference: '',
   allergies: '',
+  goal: '',
 };
 
-const toStringValue = (value) =>
-  value !== undefined && value !== null ? String(value) : '';
+const toStringValue = (value) => (value !== undefined && value !== null ? String(value) : '');
 
 const EditProfile = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
   const [preview, setPreview] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [storedUser, setStoredUser] = useState(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-
-    if (!savedUser) {
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const parsedUser = JSON.parse(savedUser);
-      setStoredUser(parsedUser);
-      setForm({
-        firstName: parsedUser.firstName || '',
-        lastName: parsedUser.lastName || '',
-        email: parsedUser.email || '',
-        age: toStringValue(parsedUser.age),
-        weight: toStringValue(parsedUser.weight),
-        height: toStringValue(parsedUser.height),
-        gender: parsedUser.gender || '',
-        dietaryPreference: parsedUser.dietaryPreference || '',
-        allergies: parsedUser.allergies || '',
-      });
-
-      if (parsedUser.photo) {
-        setPreview(parsedUser.photo);
+    const loadProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
       }
-    } catch (err) {
-      console.error('Error loading user profile from localStorage:', err);
-      localStorage.removeItem('user');
-      navigate('/login');
-    }
+
+      try {
+        const { data } = await fetchProfile();
+        if (!data?.user) {
+          navigate('/login');
+          return;
+        }
+
+        const user = data.user;
+        setStoredUser(user);
+        setForm({
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          email: user.email || '',
+          age: toStringValue(user.age),
+          weight: toStringValue(user.weight),
+          height: toStringValue(user.height),
+          gender: user.gender || '',
+          dietaryPreference: user.dietaryPreference || '',
+          allergies: user.allergies || '',
+          goal: user.goal || '',
+        });
+        setPreview(user.photoUrl || user.photo || null);
+        setPhotoFile(null);
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (error) {
+        console.error('Failed to load profile from API:', error);
+        const savedUser = localStorage.getItem('user');
+        if (!savedUser) {
+          navigate('/login');
+          return;
+        }
+
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setStoredUser(parsedUser);
+          setForm({
+            firstName: parsedUser.firstName || '',
+            lastName: parsedUser.lastName || '',
+            email: parsedUser.email || '',
+            age: toStringValue(parsedUser.age),
+            weight: toStringValue(parsedUser.weight),
+            height: toStringValue(parsedUser.height),
+            gender: parsedUser.gender || '',
+            dietaryPreference: parsedUser.dietaryPreference || '',
+            allergies: parsedUser.allergies || '',
+            goal: parsedUser.goal || '',
+          });
+          setPreview(parsedUser.photoUrl || parsedUser.photo || null);
+          setPhotoFile(null);
+        } catch (storageError) {
+          console.error('Error parsing profile from localStorage:', storageError);
+          localStorage.removeItem('user');
+          navigate('/login');
+        }
+      }
+    };
+
+    loadProfile();
   }, [navigate]);
 
   const clearFieldError = (field) => {
@@ -87,6 +124,7 @@ const EditProfile = () => {
       return;
     }
 
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreview(reader.result);
@@ -127,10 +165,14 @@ const EditProfile = () => {
       validationErrors.gender = 'Select a gender option.';
     }
 
+    if (!form.goal) {
+      validationErrors.goal = 'Select a goal.';
+    }
+
     return validationErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
@@ -142,23 +184,49 @@ const EditProfile = () => {
     setIsSaving(true);
 
     try {
-      const updatedUser = {
-        ...storedUser,
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim(),
-        age: Number(form.age),
-        weight: Number(form.weight),
-        height: Number(form.height),
-        gender: form.gender,
-        dietaryPreference: form.dietaryPreference,
-        allergies: form.allergies,
-        photo: preview || storedUser.photo || null,
-      };
+      const formData = new FormData();
+      formData.append('firstName', form.firstName.trim());
+      formData.append('lastName', form.lastName.trim());
+      formData.append('email', form.email.trim());
+      formData.append('age', form.age);
+      formData.append('weight', form.weight);
+      formData.append('height', form.height);
+      formData.append('gender', form.gender);
+      formData.append('dietaryPreference', form.dietaryPreference);
+      formData.append('allergies', form.allergies);
+      formData.append('goal', form.goal);
 
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
+
+      const { data } = await updateProfile(formData);
+      const updatedUser = data?.user;
+
+      if (updatedUser) {
+        setStoredUser(updatedUser);
+        setForm({
+          firstName: updatedUser.firstName || '',
+          lastName: updatedUser.lastName || '',
+          email: updatedUser.email || '',
+          age: toStringValue(updatedUser.age),
+          weight: toStringValue(updatedUser.weight),
+          height: toStringValue(updatedUser.height),
+          gender: updatedUser.gender || '',
+          dietaryPreference: updatedUser.dietaryPreference || '',
+          allergies: updatedUser.allergies || '',
+          goal: updatedUser.goal || '',
+        });
+        setPreview(updatedUser.photoUrl || updatedUser.photo || null);
+        setPhotoFile(null);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
       alert('Profile updated successfully!');
       navigate('/profile');
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      alert('Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -243,6 +311,22 @@ const EditProfile = () => {
               </div>
 
               <div className="col-md-6">
+                <label className="form-label fw-semibold">Goal</label>
+                <select
+                  name="goal"
+                  className={`form-select ${errors.goal ? 'is-invalid' : ''}`}
+                  value={form.goal}
+                  onChange={handleChange}
+                >
+                  <option value="">Select</option>
+                  <option value="maintain">Maintain weight</option>
+                  <option value="gain">Gain weight</option>
+                  <option value="lose">Lose weight</option>
+                </select>
+                {errors.goal && <div className="invalid-feedback">{errors.goal}</div>}
+              </div>
+
+              <div className="col-md-6">
                 <label className="form-label fw-semibold">Dietary Preference</label>
                 <select
                   name="dietaryPreference"
@@ -255,6 +339,7 @@ const EditProfile = () => {
                   <option value="vegan">Vegan</option>
                   <option value="pescatarian">Pescatarian</option>
                   <option value="omnivore">Omnivore</option>
+                  <option value="halal">Halal</option>
                 </select>
               </div>
 

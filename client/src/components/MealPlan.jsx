@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { API } from '../api';
 
 const MEAL_KEYS = [
@@ -12,28 +12,64 @@ const FALLBACK_PLAN = [
   {
     day: 'Day 1',
     meals: {
-      breakfast: ['Greek yogurt parfait with berries and granola'],
-      lunch: ['Grilled chicken, quinoa, and roasted vegetables'],
-      dinner: ['Baked salmon with brown rice and steamed broccoli'],
-      snacks: ['Apple slices with peanut butter'],
+      breakfast: ['Brown sinangag with scrambled egg whites, tomatoes, and malunggay'],
+      lunch: ['Steamed fish fillet with calamansi, blanched kangkong, and red rice'],
+      dinner: ['Chicken tinola with sayote, malunggay, and brown rice'],
+      snacks: ['Fresh papaya slices with chia seeds'],
     },
   },
   {
     day: 'Day 2',
     meals: {
-      breakfast: ['Oatmeal topped with banana and chia seeds'],
-      lunch: ['Whole-grain wrap with turkey, spinach, and hummus'],
-      dinner: ['Stir-fried tofu with mixed vegetables and soba noodles'],
-      snacks: ['Handful of almonds and a clementine'],
+      breakfast: ['Overnight oats with mango, toasted pinipig, and coconut yogurt'],
+      lunch: ['Ginisang monggo with ampalaya leaves served over adlai'],
+      dinner: ['Inihaw na bangus belly with ensaladang talong'],
+      snacks: ['Cucumber sticks with calamansi yogurt dip'],
     },
   },
   {
     day: 'Day 3',
     meals: {
-      breakfast: ['Veggie omelette with whole-grain toast'],
-      lunch: ['Lentil soup with a side salad'],
-      dinner: ['Grilled shrimp tacos with cabbage slaw'],
-      snacks: ['Carrot sticks with hummus'],
+      breakfast: ['Taho-inspired soy pudding with arnibal made from muscovado and topped with sago and langka'],
+      lunch: ['Pinakbet with squash, sitaw, okra, and lean pork tenderloin'],
+      dinner: ['Grilled chicken inasal breast with laing and red rice'],
+      snacks: ['Banana saba slices with peanut butter'],
+    },
+  },
+  {
+    day: 'Day 4',
+    meals: {
+      breakfast: ['Whole-wheat pandesal with kesong puti, kamatis, and lettuce'],
+      lunch: ['Lentil and malunggay lugaw with boiled egg and calamansi'],
+      dinner: ['Pork sinigang sa bayabas with lots of kangkong, labanos, and okra'],
+      snacks: ['Roasted chickpeas seasoned adobo-style'],
+    },
+  },
+  {
+    day: 'Day 5',
+    meals: {
+      breakfast: ['Vegetable omelette with talbos ng kamote and onions, served with brown rice'],
+      lunch: ['Tinapang salmon salad with mixed greens, singkamas, and pineapple vinaigrette'],
+      dinner: ['Ginataang kalabasa at sitaw with grilled tilapia'],
+      snacks: ['Buko pandan chia pudding'],
+    },
+  },
+  {
+    day: 'Day 6',
+    meals: {
+      breakfast: ['Champorado made with tablea, low-fat milk, and topped with toasted coconut'],
+      lunch: ['Chicken adobo sa gata with pechay and red rice'],
+      dinner: ['Adobong pusit with sauteed sayote tops'],
+      snacks: ['Kamote fries baked with olive oil'],
+    },
+  },
+  {
+    day: 'Day 7',
+    meals: {
+      breakfast: ['Lugaw topped with shredded chicken, ginger, and crispy garlic'],
+      lunch: ['Bistek Tagalog using lean beef, caramelized onions, and blanched bok choy'],
+      dinner: ['Vegetable stir-fry with tofu, broccoli, carrots, and brown rice'],
+      snacks: ['Fresh mango and pineapple fruit cup'],
     },
   },
 ];
@@ -150,7 +186,7 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
         setWarning(
           serverMessage
             ? `${serverMessage}. Showing a sample plan you can use right away.`
-            : 'We could not reach the meal service. Here is a sample 3-day plan you can use right away.'
+            : 'We could not reach the meal service. Here is a sample 7-day plan you can use right away.'
         );
         setMealPlan(normalizePlan(FALLBACK_PLAN));
       } finally {
@@ -232,3 +268,9 @@ const MealPlan = ({ goal, dietaryPreference, allergies }) => {
 };
 
 export default MealPlan;
+
+
+
+
+
+

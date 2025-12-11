@@ -8,6 +8,9 @@ import Features from './pages/Features';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
 import AdminPage from './pages/AdminPage';
+import OperationsBoard from './pages/OperationsBoard';
+import Workouts from './pages/Workouts';
+import WorkoutLanding from './pages/WorkoutLanding';
 
 function App() {
   return (
@@ -22,6 +25,9 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/editprofile" element={<EditProfile />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/operations-board" element={<OperationsBoard />} />
+        <Route path="/workouts" element={<Workouts />} />
+        <Route path="/workouts/:slug" element={<WorkoutLanding />} />
       </Routes>
     </Router>
   );
