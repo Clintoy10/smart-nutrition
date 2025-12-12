@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const resolveBaseURL = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const envUrl = import.meta.env.BACKEND_URL;
   if (envUrl) {
     return envUrl;
   }
